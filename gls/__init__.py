@@ -1,47 +1,66 @@
+"""
+GLS -- Git list files
+
+A ls-clone that weaves git-status information into output.
+"""
 import sys
 from subprocess import Popen
 import glob
 import os
-import sys
 import functools
+import re
 
 from gls.configure import color, white, mapping
 
 
 def get_git_status(gitpath, path):
+    """
+    Retrieve the git status on file in directory
+
+    Args:
+        gitpath (str) : Relative path from git root to current directory.
+        path (str) : Absolute path to git root directory.
+
+    Returns:
+        (dict) : Keys are filenames and values are raw git status codes.
+    """
 
     os.chdir(gitpath+path)
+    cmd = "git status --ignored --porcelain -u ."
+
     if sys.version_info.major == 2:
-        proc = Popen("git status --ignored --porcelain -u .", shell=True, stdout=-1)
-        status = proc.communicate()[0].split("\n")[:-1]
-        status = {d[4+len(path):]: d[:2] for d in status
-                if d[-1] != "/"}
+        proc = Popen(cmd, shell=True, stdout=-1)
+        statuses = proc.communicate()[0]
     else:
-        with Popen("git status --ignored --porcelain -u .",
-                   shell=True, stdout=-1) as proc:
-            status = proc.stdout.read().decode("utf-8")
-            status = status.split("\n")[:-1]
-            status = {d[4+len(path):]: d[:2] for d in status
-                    if d[-1] != "/"}
+        with Popen(cmd, shell=True, stdout=-1) as proc:
+            statuses = proc.stdout.read().decode("utf-8")
 
-    if "" in status:
-        del status[""]
+    regex = r"^(..) " + "."*len(gitpath) + r"([^\n/]*)$"
+    statuses = {
+        key[1] : key[0] for key in re.findall(regex, statuses, re.M)
+    }
 
-    for key in list(status.keys()):
-        if "/" in key:
-            del status[key]
-    return status
+    return statuses
 
 
 def format_status(status):
-    X, Y = status
-    if X == " ":
-        X = "_"
-    if Y == " ":
-        Y = "_"
-    if X == Y == "_":
-        X = Y = " "
-    return X, Y
+    """
+Args:
+    status (str) : Raw two-letter git status code.
+
+Returns:
+    (str) : Formatet two-letter git status code.
+
+    """
+    local, server = status
+    if local == " ":
+        local = "_"
+    if server == " ":
+        server = "_"
+    if local == server == "_":
+        local = server = " "
+    return local + server
+
 
 def word_color(X, Y):
 
@@ -56,11 +75,17 @@ def word_color(X, Y):
 def main(args):
 
     path = os.path.abspath(args.DIR)
-    os.chdir(path)
-    gitpath = Popen("git rev-parse --git-dir .",
-                    shell=1, stdout=-1).communicate()[0][:-7]
-    if sys.version_info.major == 3:
-        gitpath = gitpath.decode("utf-8")
+    os.chdir(path)#
+
+    cmd = "git rev-parse --git-dir"
+    if sys.version_info.major == 2:
+        proc = Popen(cmd, shell=True, stdout=-1)
+        gitpath = proc.communicate()[0]
+    else:
+        with Popen(cmd, shell=True, stdout=-1) as proc:
+            gitpath = proc.stdout.read().decode("utf-8")
+    gitpath = gitpath[:-7]
+
     path = path[len(gitpath):]
 
     files = glob.glob(gitpath+path+"/*")
