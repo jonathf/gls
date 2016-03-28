@@ -13,19 +13,19 @@ import re
 from gls.configure import color, white, mapping
 
 
-def get_git_status(gitpath, path):
+def get_statuses(gpath, lpath):
     """
     Retrieve the git status on file in directory
 
     Args:
-        gitpath (str) : Relative path from git root to current directory.
-        path (str) : Absolute path to git root directory.
+        gpath (str) : Absolute path to git root directory.
+        lpath (str) : Relative path from git root to current directory.
 
     Returns:
         (dict) : Keys are filenames and values are raw git status codes.
     """
 
-    os.chdir(gitpath+path)
+    os.chdir(gpath+lpath)
     cmd = "git status --ignored --porcelain -u ."
 
     if sys.version_info.major == 2:
@@ -35,7 +35,7 @@ def get_git_status(gitpath, path):
         with Popen(cmd, shell=True, stdout=-1) as proc:
             statuses = proc.stdout.read().decode("utf-8")
 
-    regex = r"^(..) " + "."*len(gitpath) + r"([^\n/]*)$"
+    regex = r"^(..) " + "."*len(gpath) + r"([^\n/]*)$"
     statuses = {
         key[1] : key[0] for key in re.findall(regex, statuses, re.M)
     }
@@ -45,52 +45,75 @@ def get_git_status(gitpath, path):
 
 def format_status(status):
     """
-Args:
-    status (str) : Raw two-letter git status code.
+    Convert a raw git status to letter for the screen.  Mostly converting
+    spaces to underscores.
 
-Returns:
-    (str) : Formatet two-letter git status code.
+    Args:
+        status (str) : Raw two-letter git status code.
+
+    Returns:
+        (str) : Formatet two-letter git status code.
 
     """
     local, server = status
     if local == " ":
         local = "_"
+
     if server == " ":
         server = "_"
+
     if local == server == "_":
         local = server = " "
+
     return local + server
 
 
-def word_color(X, Y):
 
-    Z = X+Y
-    for code in "UD?!MACR":
-        if code in Z:
-            return color[mapping[code]]
+def get_paths(directory):
+    """
+    Get absolute path to root git directory and local path from root directory
+    to directory of interest.
 
-    return white
+    Args:
+        directory (str) : Path (relative or absolute) to folder of interest.
 
+    Returns:
+        (gpath, lpath) : 
+            gpath (str) : Absolute path to git root directory.
+            lpath (str) : Relative path from git root to folder of interest.
+    """
 
-def main(args):
-
-    path = os.path.abspath(args.DIR)
-    os.chdir(path)#
+    path = os.path.abspath(directory)
+    os.chdir(path)
 
     cmd = "git rev-parse --git-dir"
     if sys.version_info.major == 2:
         proc = Popen(cmd, shell=True, stdout=-1)
-        gitpath = proc.communicate()[0]
+        gpath = proc.communicate()[0]
     else:
         with Popen(cmd, shell=True, stdout=-1) as proc:
-            gitpath = proc.stdout.read().decode("utf-8")
-    gitpath = gitpath[:-7]
+            gpath = proc.stdout.read().decode("utf-8")
+    gpath = gpath[:-7]
+    lpath = path[len(gpath):]
 
-    path = path[len(gitpath):]
+    return gpath, lpath
 
-    files = glob.glob(gitpath+path+"/*")
-    files += glob.glob(gitpath+path+"/.*")
-    files = [f[len(gitpath+path)+1:] for f in files]
+
+def get_files(path):
+    """
+    Get all files (hidden and visible) and strip paths relative to folder of
+    interest. Omits `.git` folder.
+
+    Args:
+        path (str) : Absolute path to direcgtory of interest.
+
+    Returns:
+        (list) : List of file and folder names in directory.
+    """
+
+    files = glob.glob(path+"/*")
+    files += glob.glob(path+"/.*")
+    files = [f[len(path)+1:] for f in files]
 
     if ".git" in files:
         del files[files.index(".git")]
@@ -108,66 +131,150 @@ def main(args):
     else:
         files = sorted(files, key=functools.cmp_to_key(_cmp))
 
-    lengths = [len(f) for f in files]
+    return files
+
+
+def word_color(status_local, status_server):
+    """
+    Select color for the status.
+
+Args:
+    status_local (str) : Single letter git status code.
+    status_server (str) : Single letter git status code.
+
+Returns:
+    (str) : Bash color code respective to the color mapping rule.
+    """
+
+    for code in "UD?!MACR":
+        if code in status_local+status_server:
+            return color[mapping[code]]
+
+    return white
+
+
+def remove_hidden(lfiles, statuses):
+    """
+Remove all hidden file instancecs that isn't tracked.
+
+Args:
+    lfiles (list) : Collection of filenames.
+    statuses (dict) : Collection of two-letter file status codes.
+
+Changes `lfiles` *IN PLACE*.
+    """
+
+    for lfile in lfiles[::-1]:
+
+        if os.path.split(lfile)[-1][0] == "." \
+                and statuses.get(lfile, "-") in ("!!", "??"):
+            lfiles.remove(lfile)
+
+
+def remove_untracked(lfiles, statuses):
+    """
+Remove all file instances that isn't tracked.
+
+Args:
+    lfiles (list) : Collection of filenames.
+    statuses (dict) : Collection of two-letter file status codes.
+
+Changes `lfiles` *IN PLACE*.
+    """
+
+    for lfile in lfiles[::-1]:
+
+        if statuses.get(lfile, "-") == "??":
+            lfiles.remove(lfile)
+
+
+def remove_ignored(lfiles, statuses):
+    """
+Remove all file instances that are actively ignored.
+
+Args:
+    lfiles (list) : Collection of filenames.
+    statuses (dict) : Collection of two-letter file status codes.
+
+Changes `lfiles` *IN PLACE*.
+    """
+
+    for lfile in lfiles[::-1]:
+
+        if statuses.get(lfile, "-") == "!!":
+            lfiles.remove(lfile)
+
+
+def get_prefixes(lfiles, statuses):
+    """
+Get color prefixes to each file and folder.
+
+Args:
+    lfiles (list) : Collection of filenames.
+    statuses (dict) : Collection of two-letter file status codes.
+
+Returns:
+    (list) : 
+    """
+
     prefix = [white + "  "]*len(files)
-
-    if args.verbose:
-        print("before")
-        print(files)
-
-    # retrieve all files in repo with status
-    git_status = get_git_status(gitpath, path)
-    if args.verbose:
-        print("status")
-        print(git_status)
-
     for i in range(len(files)-1, -1, -1):
 
         file = files[i]
+
         if os.path.isdir(file):
             prefix[i] = color[mapping["dir"]] + "  "
             continue
 
-        if file in git_status:
-            X, Y = format_status(git_status.pop(file))
-        else:
-            X, Y = format_status("  ")
-
-        if args.all:
-            pass
-
-        elif os.path.split(file)[-1][0] == "." and X in "!?"\
-                and not args.all:
-            del files[i]
-            del prefix[i]
-            del lengths[i]
-            continue
-
-        elif args.almost_all:
-            pass
-
-        elif not args.ignored and X == "!":
-            del files[i]
-            del prefix[i]
-            del lengths[i]
-            continue
-
-        elif not args.untracked and X == "?":
-            del files[i]
-            del prefix[i]
-            del lengths[i]
-            continue
+        X, Y = format_status(statuses.pop(files[i], "  "))
 
         cX = color[mapping[X]]
         cY = color[mapping[Y]]
         cZ = word_color(X, Y)
         prefix[i] = cX + X + cY + Y + cZ
 
+    return prefix
+
+
+def main(args):
+
+    gpath, lpath = get_paths(args.DIR)
+
+    files = get_files(gpath + lpath)
+    statuses = get_statuses(gpath, lpath)
+
+    if args.verbose:
+        print("before")
+        print(files)
+
+    if args.verbose:
+        print("statuses")
+        print(statuses)
+
+
+    if args.all:
+        pass
+
+    elif args.almost_all:
+        remove_hidden(files, statuses)
+
+    elif args.untracked:
+        remove_hidden(files, statuses)
+        remove_ignored(files, statuses)
+
+    else:
+        remove_hidden(files, statuses)
+        remove_ignored(files, statuses)
+        remove_untracked(files, statuses)
+
+    lengths = [len(f) for f in files]
+    prefixes = get_prefixes(files, statuses)
+
     if args.verbose:
         print("between")
         print(files)
 
-    for file, status in git_status.items():
+    for file, status in statuses.items():
 
         X, Y = format_status(status)
 
