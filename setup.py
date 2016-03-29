@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf8
+"""
+Installer of GLS
+"""
 
 import sys
 import shutil

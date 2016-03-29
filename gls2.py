@@ -6,6 +6,7 @@ but displayes the git-status through the colors."""
 
 import argparse
 import os
+import sys
 import gls
 
 def argument_parser():
@@ -27,8 +28,8 @@ def argument_parser():
         usage="%(prog)s [-aAihlruvV] DIR"
         )
 
-    parser.add_argument("DIR", nargs="?",
-                        help="folder to explore")
+    parser.add_argument("FILE", nargs="?",
+                        help="files to list")
     parser.add_argument("-A", "--all", action="store_true",
                         help="show untracked, ignored and hidden")
     parser.add_argument("-a", "--almost-all", action="store_true",
@@ -49,15 +50,12 @@ def argument_parser():
                         help="be loud")
 
     args = parser.parse_args()
-    if not args.DIR:
-        args.DIR = "."
     return args
 
 
 if __name__ == "__main__":
 
     args = argument_parser()
-    os.chdir(args.DIR)
 
     # check if in a git repo and default to ls if not
     isgit = os.system(

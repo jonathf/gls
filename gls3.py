@@ -6,6 +6,7 @@ but displayes the git-status through the colors."""
 
 import argparse
 import os
+import sys
 import gls
 
 def argument_parser():
@@ -49,15 +50,12 @@ def argument_parser():
                         help="be loud")
 
     args = parser.parse_args()
-    if not args.DIR:
-        args.DIR = "."
     return args
 
 
 if __name__ == "__main__":
 
     args = argument_parser()
-    os.chdir(args.DIR)
 
     # check if in a git repo and default to ls if not
     isgit = os.system(
