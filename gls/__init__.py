@@ -209,11 +209,11 @@ def main(args):
     elif args.untracked:
         remove_hidden(files, statuses)
         remove_ignored(files, statuses)
+        remove_untracked(files, statuses)
 
     else:
         remove_hidden(files, statuses)
         remove_ignored(files, statuses)
-        remove_untracked(files, statuses)
 
     add_renamed(files, statuses)
 
