@@ -1,4 +1,4 @@
-GLS -- Git LiSt
+GLS - Git LiSt
 ===============
 
 `gls` is a `ls`-clone that aims at displaying information about GIT statuses as
@@ -13,14 +13,15 @@ by `gls`. Reversely, if a file is ignored (irrespectively if it is starts with
 `.` or not), it is hidden from default view.
 
 The colors in the output has the following interpretations:
-     * red -- deleted
-     * blue -- directory
-     * yellow -- modified
-     * green -- new
-     * magenda -- renamed
-     * cyan -- unmerged or missmatch in worktree
-     * white -- unmodified
-     * gray -- untracked or ignored
+
+* red - deleted
+* blue - directory
+* yellow - modified
+* green - new
+* magenda - renamed
+* cyan - unmerged or missmatch in worktree
+* white - unmodified
+* gray - untracked or ignored
 
 Obviously, this does not give detailed information about what is going on. For
 that we have `git status`. But for the day to day activity, it gives quick
