@@ -11,7 +11,7 @@ from distutils.core import setup
 
 setup(
     name='gls',
-    version='0.1',
+    version='0.2',
     packages=['gls'],
     url='http://github.com/jonathf/gls',
     author="Jonathan Feinberg",
