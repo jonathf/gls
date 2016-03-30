@@ -11,24 +11,33 @@ import gls
 
 def argument_parser():
 
-    color_codes = [gls.color[gls.mapping[m]]+m+"\033[00m" for m in gls.mapping]
-    color_codes = " ".join(color_codes)
+    descriptions = []
+    for description in sorted(gls.color.description.keys()):
+
+        code = gls.color.description[description]
+        mapping = gls.color.mapping[code]
+        color = gls.color.color[mapping]
+        description = "     * " + color + description
+        description = description + gls.color.color["white"]
+        descriptions.append(description)
+
+    descriptions = "\n".join(descriptions)
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description="""\
-    List information in DIR and color them by git local status""",
+    List information in FILE and color them by git local status""",
         epilog="""The default setting is to hide files that are
     ignored and untracked.
     Tracked hidden files are always visible.
 
     The colors have the following meaning:
-        """+color_codes+"""
+"""+descriptions+"""
     Tracked files without change are white.""",
-        usage="%(prog)s [-aAihlruvV] DIR"
+        usage="%(prog)s [-aAdihruvw] FILE"
         )
 
-    parser.add_argument("DIR", nargs="?",
+    parser.add_argument("FILE", nargs="?",
                         help="folder to explore")
     parser.add_argument("-A", "--all", action="store_true",
                         help="show untracked, ignored and hidden")
@@ -65,14 +74,14 @@ if __name__ == "__main__":
 
     if args.recursive:
 
-        for path, dirs, files in os.walk(args.DIR):
+        for path, dirs, files in os.walk(args.FILE):
 
             for i in xrange(len(dirs)-1, -1, -1):
                 if dirs[i] == ".git":
                     del dirs[i]
 
             print(gls.color[mapping["dir"]] + path)
-            args.DIR = path
+            args.FILE = path
             gls.main(args)
 
     else:
