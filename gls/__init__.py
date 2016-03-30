@@ -8,7 +8,9 @@ import os
 import re
 from subprocess import Popen
 
-from gls.configure import color, white, mapping
+import gls.configure
+from gls.configure import color, mapping
+
 from gls.globbing import get_files, get_paths
 
 
@@ -85,11 +87,11 @@ Returns:
     (str) : Bash color code respective to the color mapping rule.
     """
 
-    for code in "UD?!MACRr":
+    for code in "UD?!MACRrd":
         if code in status_local+status_server:
             return color[mapping[code]]
 
-    return white
+    return color["white"]
 
 
 def remove_hidden(lfiles, statuses):
@@ -165,12 +167,12 @@ Returns:
         else:
             X, Y = format_status(statuses.get(lfiles[i], "  "))
             prefix = word_color(X, Y)
-            if "r" in (X, Y):
+            if "r" in (X, Y) or "d" in (X, Y):
                 postfix = color["grey"] + "<-"
             else:
                 postfix = "  "
 
-        lfiles[i] = prefix + lfiles[i] + postfix + white
+        lfiles[i] = prefix + lfiles[i] + postfix + color["white"]
 
 
 def add_renamed(lfiles, statuses):
@@ -179,11 +181,17 @@ def add_renamed(lfiles, statuses):
 
         if len(status) > 2:
             status, renamed = status[:2], status[2:]
-            ind = lfiles.index(renamed)
-            lfiles.insert(ind+1, original)
+            if renamed in lfiles:
+                ind = lfiles.index(renamed)
+                lfiles.insert(ind+1, original)
+                statuses[original] = status
+                statuses[renamed] = status.lower()
+            else:
+                ind = lfiles.index(original)
+                lfiles.insert(ind, renamed)
+                statuses[original] = status
+                statuses[renamed] = "dd"
 
-            statuses[original] = status
-            statuses[renamed] = status.lower()
 
 
 def main(args):

@@ -10,20 +10,39 @@ color = {
     "magenta":  "\033[95m",
     "cyan":     "\033[96m",
 }
-white = color["white"]
 
 # Status assignment
 mapping = {
     " ":    "white",
+
     "_":    "grey",
-    "D":    "red",
-    "M":    "yellow",
-    "R":    "red",
-    "r":    "magenta",
-    "C":    "cyan",
-    "A":    "green",
     "?":    "grey",
     "!":    "grey",
+
+    "D":    "red",
+    "R":    "red",
+    "d":    "red",
+
+    "r":    "magenta",
+
+    "M":    "yellow",
+
+    "A":    "green",
+
     "dir":  "blue",
-    "U":    "red",
+
+    "C":    "cyan",
+    "U":    "cyan",
+}
+
+# Status description
+description = {
+              "unmodified" : " ",
+    "untracked or ignored" : "?",
+                 "deleted" : "D",
+                "modified" : "M",
+                 "renamed" : "r",
+                     "new" : "A",
+                "directory": "dir",
+    "unmerged or missmatch in worktree" : "U",
 }

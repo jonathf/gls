@@ -11,8 +11,18 @@ import gls
 
 def argument_parser():
 
-    color_codes = [gls.color[gls.mapping[m]]+m+"\033[00m" for m in gls.mapping]
-    color_codes = " ".join(color_codes)
+    descriptions = []
+    for description in sorted(gls.configure.description.keys()):
+
+        code = gls.configure.description[description]
+        mapping = gls.configure.mapping[code]
+        color = gls.configure.color[mapping]
+        description = "     * " + color + description
+        description = description + gls.configure.color["white"]
+        descriptions.append(description)
+
+    descriptions = "\n".join(descriptions)
+
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
@@ -23,7 +33,7 @@ def argument_parser():
     Tracked hidden files are always visible.
 
     The colors have the following meaning:
-        """+color_codes+"""
+"""+descriptions+"""
     Tracked files without change are white.""",
         usage="%(prog)s [-aAihlruvV] DIR"
         )
