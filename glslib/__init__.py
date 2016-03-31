@@ -3,6 +3,8 @@ GLS -- Git list files
 
 A ls-clone that weaves git-status information into output.
 """
+import os
+
 import glslib.color
 import glslib.git
 import glslib.globbing
