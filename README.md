@@ -35,7 +35,21 @@ Run as root:
 python setup.py install
 ```
 
-It will prompt about where to place the `gls` executable.
+To enable tabcompletion, installation of `argcomplete` is required.
+```
+sudo apt-get install python-argcomplete
+sudo activate-global-python-argcomplete
+```
+
+If installed in Python3:
+```
+sudo apt-get install python3-argcomplete
+sudo activate-global-python-argcomplete3
+```
+
+It is possible to install argcomplete using `pip`, but the activation script is
+not. It should either be done from package manager or from source:
+https://github.com/kislyuk/argcomplete
 
 Compatability
 -------------
@@ -47,6 +61,4 @@ in Windows.)
 Roadmap
 -------
 
-* Globbing. Currently it only supports folder targets. But should be doable in
-  Bash, etc.
-* Tab-completion through argcomplete.
+* Globbing. Currently it only supports folder targets. But should be doable.
