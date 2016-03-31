@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+""" gls: git-listings
+
+A ls-clone that lists a content of a folder using the logic of ls,
+but displayes the git-status through the colors."""
+
+import argparse
+import os
+import sys
+import glob
+import gls
+
+def argument_parser():
+
+    descriptions = []
+    for description in sorted(gls.color.description.keys()):
+
+        code = gls.color.description[description]
+        mapping = gls.color.mapping[code]
+        color = gls.color.color[mapping]
+        description = "     * " + color + description
+        description = description + gls.color.color["white"]
+        descriptions.append(description)
+
+    descriptions = "\n".join(descriptions)
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="""\
+    List information in FILE and color them by git local status""",
+        epilog="""The default setting is to hide files that are
+    ignored and untracked.
+    Tracked hidden files are always visible.
+
+    The colors have the following meaning:
+"""+descriptions+"""
+    Tracked files without change are white.""",
+        usage="%(prog)s [-aAdihruvw] FILE"
+        )
+
+    parser.add_argument("FILE", nargs="?",
+                        help="files to list").completer=\
+        lambda prefix, **kws: glob.glob(prefix+"*")
+    parser.add_argument("-A", "--all", action="store_true",
+                        help="show untracked, ignored and hidden")
+    parser.add_argument("-a", "--almost-all", action="store_true",
+                        help="show untracted and ignored")
+    parser.add_argument("-r", "--recursive", action="store_true",
+                        help="list subdirectories recursively")
+    parser.add_argument("-u", "--untracked", action="store_true",
+                        help="show untracked files")
+    parser.add_argument("-i", "--ignored", action="store_true",
+                        help="show ignored files")
+    parser.add_argument("-s", "--server", action="store_true",
+                        help="check status on server instead of local")
+    parser.add_argument("-d", "--directory", action="store_true",
+                        help="do not include directories")
+    parser.add_argument("-w", "--width", type=int,
+                        help="assume screen width instead of current value")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="be loud")
+
+    args = parser.parse_args()
+    return args
+
+try:
+    import argcomplete
+    argcomplete.autocomplete(parser)
+except:
+    pass
+
+
+if __name__ == "__main__":
+
+    args = argument_parser()
+    gls.main(args)
+
