@@ -6,8 +6,8 @@ A ls-clone that lists a content of a folder using the logic of ls,
 but displayes the git-status through the colors."""
 
 import argparse
-import sys
 import glob
+
 import glslib
 
 
@@ -37,8 +37,8 @@ Tracked files without change are white.""",
     usage="%(prog)s [-aAdihruvw] FILE"
     )
 
-parser.add_argument("FILE", nargs="?",
-                    help="files to list").completer=\
+parser.add_argument("FILE", nargs="*",
+                    help="files and foldes to be listed").completer=\
     lambda prefix, **kws: glob.glob("*")
 parser.add_argument("-A", "--all", action="store_true",
                     help="show untracked, ignored and hidden")

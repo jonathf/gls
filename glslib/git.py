@@ -3,6 +3,43 @@ import sys
 import re
 import os
 
+
+def get_status(gpath):
+    """
+    Retrieve the git status on file in directory
+
+    Args:
+        gpath (str) : Absolute path to git root directory.
+        lpath (str) : Relative path from git root to current directory.
+
+    Returns:
+        (dict) : Keys are filenames and values are raw git status codes.
+    """
+
+    os.chdir(gpath+lpath)
+
+    cmd = "git status --ignored --porcelain -u ."
+
+    if sys.version_info.major == 2:
+        proc = subprocess.Popen(cmd, shell=True, stdout=-1)
+        output = proc.communicate()[0]
+    else:
+        with subprocess.Popen(cmd, shell=True, stdout=-1) as proc:
+            output = proc.stdout.read().decode("utf-8")
+
+    regex = r"^(..) " + "."*len(lpath) + r"([^\n/>]*)$"
+    statuses = {
+        key[1] : key[0] for key in re.findall(regex, output, re.M)
+    }
+    regex = r"^(..) " + "."*len(lpath) + r"([^\n/>]*) -> (.+)$"
+    statuses.update({
+        key[1] : key[0]+key[2] for key in re.findall(regex, output, re.M)
+    })
+
+    return statuses
+
+
+# obsolete
 def get_statuses(gpath, lpath):
     """
     Retrieve the git status on file in directory
