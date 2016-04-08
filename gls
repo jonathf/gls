@@ -10,15 +10,14 @@ import glob
 
 import glslib
 
-
 descriptions = []
-for description in sorted(glslib.color.description.keys()):
+for description in sorted(glslib.config.description.keys()):
 
-    code = glslib.color.description[description]
-    mapping = glslib.color.mapping[code]
-    color = glslib.color.color[mapping]
+    code = glslib.config.description[description]
+    mapping = glslib.config.mapping[code]
+    color = glslib.config.color[mapping]
     description = "     * " + color + description
-    description = description + glslib.color.color["white"]
+    description = description + glslib.config.color["white"]
     descriptions.append(description)
 
 descriptions = "\n".join(descriptions)
@@ -40,24 +39,16 @@ Tracked files without change are white.""",
 parser.add_argument("FILE", nargs="*",
                     help="files and foldes to be listed").completer=\
     lambda prefix, **kws: glob.glob("*")
-parser.add_argument("-A", "--all", action="store_true",
-                    help="show untracked, ignored and hidden")
-parser.add_argument("-a", "--almost-all", action="store_true",
-                    help="show untracted and ignored")
+parser.add_argument("-a", "--all", action="store_true",
+                    help="show ignored and hidden")
 parser.add_argument("-r", "--recursive", action="store_true",
                     help="list subdirectories recursively")
 parser.add_argument("-u", "--untracked", action="store_true",
-                    help="show untracked files")
+                    help="hide untracked files")
 parser.add_argument("-i", "--ignored", action="store_true",
                     help="show ignored files")
-parser.add_argument("-s", "--server", action="store_true",
-                    help="check status on server instead of local")
-parser.add_argument("-d", "--directory", action="store_true",
-                    help="do not include directories")
 parser.add_argument("-w", "--width", type=int,
                     help="assume screen width instead of current value")
-parser.add_argument("-v", "--verbose", action="store_true",
-                    help="be loud")
 
 try:
     import argcomplete
@@ -69,5 +60,6 @@ except:
 if __name__ == "__main__":
 
     args = parser.parse_args()
-    glslib.main(args)
+    out = glslib.main(args)
+    print(out)
 
