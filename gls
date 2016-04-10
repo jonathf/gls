@@ -7,6 +7,7 @@ but displayes the git-status through the colors."""
 
 import argparse
 import glob
+import sys
 
 import glslib
 
@@ -33,7 +34,8 @@ Tracked hidden files are always visible.
 The colors have the following meaning:
 """+descriptions+"""
 Tracked files without change are white.""",
-    usage="%(prog)s [-aAdihruvw] FILE"
+    usage="%(prog)s [-aAdihruvw] FILE",
+    add_help=False
     )
 
 parser.add_argument("FILE", nargs="*",
@@ -43,12 +45,18 @@ parser.add_argument("-a", "--all", action="store_true",
                     help="show ignored and hidden")
 parser.add_argument("-r", "--recursive", action="store_true",
                     help="list subdirectories recursively")
+parser.add_argument("-l", "--long", action="store_true",
+                    help="use a long listing format")
+parser.add_argument("-h", "--human-readable", action="store_true",
+                    help="print human readable sizes")
 parser.add_argument("-u", "--untracked", action="store_true",
                     help="hide untracked files")
 parser.add_argument("-i", "--ignored", action="store_true",
                     help="show ignored files")
 parser.add_argument("-w", "--width", type=int,
                     help="assume screen width instead of current value")
+parser.add_argument("-H", "--help", action="store_true",
+                    help="display help message")
 
 try:
     import argcomplete
@@ -60,6 +68,9 @@ except:
 if __name__ == "__main__":
 
     args = parser.parse_args()
-    out = glslib.main(args)
-    print(out)
+    if args.help:
+        parser.print_help()
+    else:
+        out = glslib.main(args)
+        print(out)
 

@@ -118,7 +118,23 @@ Returns:
 
 def format_files_expanded(lfiles, git_status, sys_status):
     
-    lenghts = [(len(s) for s in status) for status in sys_status]
+    lengths = max([[len(s) for s in status] for status in sys_status])
+    template = "*-%ds *-%ds *-%ds *%ds *-%ds *%ds " % tuple(lengths)
+    template = template.replace("*", "%")
+
+    formated_files = format_files(lfiles, git_status)
+
+    outs = []
+    for lfile, syss, ffile in zip(lfiles, sys_status, formated_files):
+        gits = git_status.get(lfile, "  ")
+        gits = gits != "TT" and gits or "  "
+        out = template % syss
+        out = glslib.config.color["white"] + out
+        out = out + ffile
+        outs.append(out)
+
+    outs = "\n".join(outs)
+    return outs
     
 
 
@@ -323,17 +339,7 @@ def get_sys_status(lfiles, human=False):
             pre = "d"
 
         else:
-            cmd = 'git log -1 --format="%at %ad" ' + lfile
-            output = git_command(cmd, os.path.dirname(lfile))
-            o = output.split(" ")
-            if float(o[0]) > six_months_ago:
-                mtime1 = o[2]
-                mtime2 = o[3] + " " + o[4][:5]
-            else:
-                mtime1 = o[2]
-                mtime2 = o[3] + "  " + o[5]
-            
-            out.append(("", "", "", "", mtime1, mtime2))
+            out.append(("", "", "", "", "", ""))
             continue
 
 
@@ -345,18 +351,20 @@ def get_sys_status(lfiles, human=False):
         group = pwd.getpwuid(stat.st_gid).pw_name
         size = stat.st_size
         if human:
-            for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
-                if abs(num) < 1024.0:
-                    size = "%3.1f%sB" % (num, unit)
+            for unit in ['','K','M','G','T','P','E','Z']:
+                if size < 1024.0:
+                    size = "%3.1f%s" % (size, unit)
                     break
-                num /= 1024.0
+                size /= 1024.0
             else:
-                size = "%.1fYiB" % num
+                size = "%.1fY" % size
+            if not unit:
+                size = size[:3]
 
         else:
             size = str(size)
 
-        mtime = time.gmtime(stat.st_mtime)
+        mtime = time.gmtime(stat.st_atime)
         if mtime > six_months_ago:
             mtime1, mtime2 = time.strftime("%b;%d %H:%I", mtime).split(";")
         else:
@@ -485,9 +493,14 @@ def main(args):
             del folders[ind]
             del lfiles[ind]
 
-        lengths = [len(os.path.relpath(path)) for path in group]
-        group = format_files(group, git_statuses)
-        group = format_table(group, lengths)
+        if args.long:
+            sys_statuses = get_sys_status(group, args.human_readable)
+            group = format_files_expanded(group, git_statuses, sys_statuses)
+
+        else:
+            lengths = [len(os.path.relpath(path)) for path in group]
+            group = format_files(group, git_statuses)
+            group = format_table(group, lengths)
 
         groups.append(group)
 
@@ -506,8 +519,8 @@ def main(args):
             del folders[ind]
             del lfiles[ind]
 
-        if False:
-            sys_statuses = get_sys_status(lfiles)
+        if args.long:
+            sys_statuses = get_sys_status(group, args.human_readable)
             group = format_files_expanded(group, git_statuses, sys_statuses)
 
         else:
