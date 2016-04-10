@@ -4,9 +4,11 @@ Library for GLS
 
 import sys
 import os
+import pwd
 import glob
 import subprocess
 import re
+import time
 
 import glslib.config
 
@@ -61,15 +63,24 @@ Returns:
              arrow if renaming).
     """
 
+    out = []
+    out_names = []
     lfiles = lfiles[:]
-    for i in range(len(lfiles)-1, -1, -1):
+    next_exec = False
 
-        lfile = lfiles[i]
+    while lfiles:
+
+        lfile = lfiles.pop(0)
 
         if os.path.isdir(lfile):
             color = glslib.config.mapping["dir"]
             prefix = glslib.config.color[color]
-            postfix = "  "
+
+            if os.path.islink(lfile):
+                postfix = glslib.config.color["cyan"] + "^ "
+            else:
+                postfix = "  "
+
         else:
             code = statuses.get(lfile, "  ")
             if code != "  ":
@@ -84,16 +95,31 @@ Returns:
             else:
                 prefix = glslib.config.color["white"]
 
-
             if "r" in code or "d" in code:
                 postfix = glslib.config.color["grey"] + "<-"
+                if os.access(lfile, os.X_OK):
+                    next_exec = True
+
+            elif os.access(lfile, os.X_OK) or next_exec:
+                postfix = glslib.config.color["green"] + "* "
+                next_exec = False
+
+            elif os.path.islink(lfile):
+                postfix = glslib.config.color["cyan"] + "^ "
+
             else:
                 postfix = "  "
 
-        lfiles[i] = prefix + os.path.basename(lfile) + postfix
+        out.append(prefix + os.path.basename(lfile) + postfix)
+        out_names.append(lfile)
 
-    return lfiles
+    return out
 
+
+def format_files_expanded(lfiles, git_status, sys_status):
+    
+    lenghts = [(len(s) for s in status) for status in sys_status]
+    
 
 
 def format_table(files, lengths, disp_width=None):
@@ -246,7 +272,7 @@ Returns:
     return repo_paths
 
 
-def get_all_status(git_paths):
+def get_git_status(git_paths):
     """
 Get all git files and their status for given set of git repo rot directories.
 
@@ -277,6 +303,66 @@ Returns:
             git_path + key[1] : key[0] + git_path + key[2]
             for key in re.findall(regex2, statuses)
         })
+
+    return out
+
+
+def get_sys_status(lfiles, human=False):
+
+    six_months_ago = time.time() - 180*24*60
+    out = []
+    for lfile in lfiles:
+
+        if os.path.isfile(lfile):
+            if os.path.islink(lfile):
+                pre = "l"
+            else:
+                pre = "-"
+
+        elif os.path.isdir(lfile):
+            pre = "d"
+
+        else:
+            cmd = 'git log -1 --format="%at %ad" ' + lfile
+            output = git_command(cmd, os.path.dirname(lfile))
+            o = output.split(" ")
+            if float(o[0]) > six_months_ago:
+                mtime1 = o[2]
+                mtime2 = o[3] + " " + o[4][:5]
+            else:
+                mtime1 = o[2]
+                mtime2 = o[3] + "  " + o[5]
+            
+            out.append(("", "", "", "", mtime1, mtime2))
+            continue
+
+
+        mode = bin(os.stat(lfile).st_mode)[-9:]
+        mode = pre + "".join([m=="1" and M or "-"
+                              for m, M in zip(mode, "rwxrwxrwx")])
+        stat = os.stat(lfile)
+        owner = pwd.getpwuid(stat.st_uid).pw_name
+        group = pwd.getpwuid(stat.st_gid).pw_name
+        size = stat.st_size
+        if human:
+            for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+                if abs(num) < 1024.0:
+                    size = "%3.1f%sB" % (num, unit)
+                    break
+                num /= 1024.0
+            else:
+                size = "%.1fYiB" % num
+
+        else:
+            size = str(size)
+
+        mtime = time.gmtime(stat.st_mtime)
+        if mtime > six_months_ago:
+            mtime1, mtime2 = time.strftime("%b;%d %H:%I", mtime).split(";")
+        else:
+            mtime1, mtime2 = time.strftime("%b;%d  %Y", mtime).split(";")
+
+        out.append((mode, owner, group, size, mtime1, mtime2))
 
     return out
 
@@ -316,7 +402,10 @@ Note:
     Statuses are changed in place for renamed in git work tree.
     """
     lfiles = lfiles[:]
-    for lfile in lfiles[::-1]:
+    out = []
+
+    while lfiles:
+        lfile = lfiles.pop(0)
 
         status = statuses.get(lfile, "")
 
@@ -325,12 +414,23 @@ Note:
             status, renamed = status[:2], status[2:]
 
             if renamed in lfiles:
+
+                lfiles.remove(renamed)
+                lfiles.insert(0, lfile)
+                lfiles.insert(0, renamed)
+                statuses[lfile] = status
+                statuses[renamed] = status.lower()
+
+            elif renamed in out:
+                out.remove(renamed)
+                lfiles.insert(0, lfile)
+                lfiles.insert(0, renamed)
                 statuses[lfile] = status
                 statuses[renamed] = status.lower()
 
             else:
-                ind = lfiles.index(lfile)
-                lfiles.insert(ind, renamed)
+                lfiles.insert(0, lfile)
+                lfiles.insert(0, renamed)
                 statuses[lfile] = status
                 statuses[renamed] = "dd"
 
@@ -340,10 +440,11 @@ Note:
             untracked_ = status == "??" and untracked
             ignored_ = status == "!!" and ignored
 
-            if hidden_ or untracked_ or ignored_:
-                lfiles.remove(lfile)
+            if not hidden_ and not untracked_ and not ignored_:
+                out.append(lfile)
 
-    return lfiles
+
+    return out
 
 
 def main(args):
@@ -353,18 +454,17 @@ def main(args):
         userinput = ["."]
 
     git_roots = get_git_roots(userinput)
-    statuses = get_all_status(set(git_roots.values()))
-    lfiles = expand_glob(userinput, set(statuses.keys()))
+    git_statuses = get_git_status(set(git_roots.values()))
+    lfiles = expand_glob(userinput, set(git_statuses.keys()))
 
-    add_tracked_unmodified(lfiles, statuses)
+    add_tracked_unmodified(lfiles, git_statuses)
 
     ignored = True  - args.all - args.ignored
     hidden = True - args.all
     untracked = args.untracked - args.all
 
-    lfiles = filter_content(lfiles, statuses,
+    lfiles = filter_content(lfiles, git_statuses,
                        ignored=ignored, hidden=hidden, untracked=untracked)
-
 
     groups = []
     folders = [os.path.dirname(j) + os.sep for j in lfiles]
@@ -386,7 +486,7 @@ def main(args):
             del lfiles[ind]
 
         lengths = [len(os.path.relpath(path)) for path in group]
-        group = format_files(group, statuses)
+        group = format_files(group, git_statuses)
         group = format_table(group, lengths)
 
         groups.append(group)
@@ -406,9 +506,14 @@ def main(args):
             del folders[ind]
             del lfiles[ind]
 
-        lengths = [len(os.path.relpath(path)) for path in group]
-        group = format_files(group, statuses)
-        group = format_table(group, lengths)
+        if False:
+            sys_statuses = get_sys_status(lfiles)
+            group = format_files_expanded(group, git_statuses, sys_statuses)
+
+        else:
+            lengths = [len(os.path.relpath(path)) for path in group]
+            group = format_files(group, git_statuses)
+            group = format_table(group, lengths)
         groups.append(group)
 
 
