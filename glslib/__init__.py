@@ -126,10 +126,6 @@ def format_files_expanded(lfiles, git_status, sys_status):
 
     outs = []
     for lfile, syss, ffile in zip(lfiles, sys_status, formated_files):
-
-        if os.path.islink(lfile):
-            ffile = ffile[:-2] + glslib.config.color["Cyan"] + " -> " +\
-                glslib.config.color["white"] + os.path.realpath(lfile)
         gits = git_status.get(lfile, "  ")
         gits = gits != "TT" and gits or "  "
         out = template % syss
@@ -333,11 +329,11 @@ def get_sys_status(lfiles, human=False):
     out = []
     for lfile in lfiles:
 
-        if os.path.islink(lfile):
-            pre = "l"
-
-        elif os.path.isfile(lfile):
-            pre = "-"
+        if os.path.isfile(lfile):
+            if os.path.islink(lfile):
+                pre = "l"
+            else:
+                pre = "-"
 
         elif os.path.isdir(lfile):
             pre = "d"
