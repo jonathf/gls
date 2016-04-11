@@ -182,7 +182,7 @@ Returns:
     return out
 
 
-def expand_glob(lpaths, gpaths):
+def expand_glob(lpaths, git_statuses):
     """
 Expand a list of filenames/dirnames/globs.
 
@@ -193,7 +193,7 @@ Args:
 Returns:
     (list) : list of expanded paths
     """
-    gpaths = sorted(gpaths, key=sorting_key)
+    gpaths = sorted(set(git_statuses.values()), key=sorting_key)
     gitpathstring = "\n".join(gpaths)
 
     out = []
@@ -236,21 +236,27 @@ Returns:
     if "" in out:
         out.remove("")
 
+    folders = [os.path.dirname(j) + os.sep for j in out]
+    cmd = "git ls-tree --name-status HEAD"
+
+    for folder in folders:
+        paths = git_command(cmd, folder)
+        for line in paths.split("\n"):
+            if line and folder+line not in git_statuses:
+                git_statuses[folder + line] = "TT"
+
     return out
 
 
-def get_git_roots(lfiles):
+def get_git_status(lfiles):
     """
-Expand all globs and retrive all unique folders to extract all git root
-folders.
+Get all git files and their status for given set of git repo rot directories.
 
 Args:
     lfiles (list) : List of unmodified user input.
 
 Returns:
-    (dict) : Keys are path names retrieved from globing, and values are the
-            assosiated git root folder. The values are empty strings for globs
-            outside the repo.
+    (dict) : Keys are full paths, and values are git two-letter status codes.
     """
 
     globs = []
@@ -276,28 +282,14 @@ Returns:
     folders = [os.path.dirname(lfile) for lfile in globs]
 
     cmd = "git rev-parse --git-dir"
-    repo_paths = {
-        folder : os.path.dirname(
+    git_paths = {
+        os.path.dirname(
             os.path.abspath(
                 git_command(cmd, folder)
             )
         ) + os.sep
         for folder in set(folders)
     }
-
-    return repo_paths
-
-
-def get_git_status(git_paths):
-    """
-Get all git files and their status for given set of git repo rot directories.
-
-Args:
-    git_paths (list) : List of paths to git repo roots.
-
-Returns:
-    (dict) : Keys are full paths, and values are git two-letter status codes.
-    """
 
     if "" in git_paths:
         git_paths.remove("")
@@ -375,19 +367,6 @@ def get_sys_status(lfiles, human=False):
     return out
 
 
-def add_tracked_unmodified(lfiles, statuses):
-
-    folders = [os.path.dirname(j) + os.sep for j in lfiles]
-    cmd = "git ls-tree --name-status HEAD"
-
-    for folder in folders:
-        paths = git_command(cmd, folder)
-        for line in paths.split("\n"):
-            if line and folder+line not in statuses:
-                statuses[folder + line] = "TT"
-
-
-
 def filter_content(lfiles, statuses,
                    hidden=False, untracked=False, ignored=False):
     """
@@ -455,17 +434,38 @@ Note:
     return out
 
 
+def extract_group(path, folders, lfiles, git_statuses,
+                   human=False, long=False):
+
+        group = []
+
+        while path in folders:
+            ind = folders.index(path)
+            group.append(lfiles[ind])
+            del folders[ind]
+            del lfiles[ind]
+
+        if long:
+            sys_statuses = get_sys_status(group, human)
+            group = format_files_expanded(group, git_statuses, sys_statuses)
+
+        else:
+            lengths = [len(os.path.relpath(path)) for path in group]
+            group = format_files(group, git_statuses)
+            group = format_table(group, lengths)
+
+        return group
+
+
 def main(args):
 
     userinput = args.FILE
     if not userinput:
         userinput = ["."]
 
-    git_roots = get_git_roots(userinput)
-    git_statuses = get_git_status(set(git_roots.values()))
-    lfiles = expand_glob(userinput, set(git_statuses.keys()))
+    git_statuses = get_git_status(userinput)
 
-    add_tracked_unmodified(lfiles, git_statuses)
+    lfiles = expand_glob(userinput, git_statuses)
 
     ignored = True  - args.all - args.ignored
     hidden = True - args.all
@@ -474,7 +474,6 @@ def main(args):
     lfiles = filter_content(lfiles, git_statuses,
                        ignored=ignored, hidden=hidden, untracked=untracked)
 
-    groups = []
     folders = [os.path.dirname(j) + os.sep for j in lfiles]
 
     curdir = os.path.abspath(".")
@@ -482,26 +481,13 @@ def main(args):
 
 
     curdir_included = False
+
+    groups = []
     if curdir in folders:
         curdir_included = True
 
-        group = []
-
-        while curdir in folders:
-            ind = folders.index(curdir)
-            group.append(lfiles[ind])
-            del folders[ind]
-            del lfiles[ind]
-
-        if args.long:
-            sys_statuses = get_sys_status(group, args.human_readable)
-            group = format_files_expanded(group, git_statuses, sys_statuses)
-
-        else:
-            lengths = [len(os.path.relpath(path)) for path in group]
-            group = format_files(group, git_statuses)
-            group = format_table(group, lengths)
-
+        group = extract_group(curdir, folders, lfiles, git_statuses,
+                               args.human_readable, args.long)
         groups.append(group)
 
     while folders:
@@ -512,21 +498,8 @@ def main(args):
         titles.append(
             glslib.config.color[color] + os.path.relpath(path) + "/:")
 
-        while path in folders:
-
-            ind = folders.index(path)
-            group.append(lfiles[ind])
-            del folders[ind]
-            del lfiles[ind]
-
-        if args.long:
-            sys_statuses = get_sys_status(group, args.human_readable)
-            group = format_files_expanded(group, git_statuses, sys_statuses)
-
-        else:
-            lengths = [len(os.path.relpath(path)) for path in group]
-            group = format_files(group, git_statuses)
-            group = format_table(group, lengths)
+        group = extract_group(path, folders, lfiles, git_statuses,
+                               args.human_readable, args.long)
         groups.append(group)
 
 
