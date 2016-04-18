@@ -1,14 +1,6 @@
-"""
-Library for GLS
-"""
+"""Library for GLS."""
 
-import sys
 import os
-import pwd
-import glob
-import subprocess
-import re
-import time
 
 import glslib.config
 import glslib.format
@@ -17,22 +9,22 @@ import glslib.globbing
 
 def filter_content(lfiles, statuses, args):
     """
-Remove files from list that are supposed to be hidden. In addition, reformat
-files related to renaming.
+    Remove files from list that are supposed to be hidden.
 
-Args:
-    lfiles (list) : A list containing a full paths retrieved after glob.
-    statuses (dict) : A dictionary containtin all statuses.
-    args (dict) : Argparse object.
+    In addition, reformat files related to renaming.
 
-Returns:
-    (list) : List of files, where unwanted files are removed, and renames are
-             fixed.
+    Args:
+        lfiles (list) : A list containing a full paths retrieved after glob.
+        statuses (dict) : A dictionary containtin all statuses.
+        args (dict) : Argparse object.
 
-Note:
-    Statuses are changed in place for renamed in git work tree.
+    Returns:
+        (list) : List of files, where unwanted files are removed, and renames
+                 are fixed.
+
+    Note:
+        Statuses are changed in place for renamed in git work tree.
     """
-
     ignored = True - args.all - args.ignored
     hidden = True - args.all
     untracked = args.untracked - args.all
@@ -83,10 +75,7 @@ Note:
 
 
 def main(args):
-    """
-    The main module.
-    """
-
+    """The main module."""
     userinput = args.FILE
     if not userinput:
         userinput = ["."]
@@ -112,7 +101,6 @@ def main(args):
         groups.append(group)
 
     while folders:
-        group = []
         path = folders[0]
 
         color = glslib.config.mapping["dir"]

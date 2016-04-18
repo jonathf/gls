@@ -1,3 +1,5 @@
+"""Identify system and git statuses for given set of user given paths."""
+
 import os
 import sys
 import subprocess
@@ -9,17 +11,15 @@ import time
 
 def git_command(cmd, folder):
     """
-Move to a directory, perform a git command and return stdout from the
-operation.
+    Perform a git command and return stdout from the operation.
 
-Args:
-    cmd (str) : Command to be performed.
-    folder (str) : Valid folder on system.
+    Args:
+        cmd (str) : Command to be performed.
+        folder (str) : Folder where operation should be performed.
 
-Returns:
-    (str) : The output from running the command.
+    Returns:
+        (str) : The output from running the command.
     """
-
     curfolder = os.path.abspath(".")
     os.chdir(folder)
 
@@ -38,23 +38,23 @@ Returns:
 
 
 def sorting_key(key):
+    """Key for which files and folders are sorted."""
     if os.path.basename(key)[:1] == ".":
         return os.path.dirname(key).lower() + os.sep +\
             os.path.basename(key)[1:].lower()
     return key.lower()
 
 
-
 def expand_glob(lpaths, git_statuses):
     """
-Expand a list of filenames/dirnames/globs.
+    Expand a list of filenames/dirnames/globs.
 
-Args:
-    lpaths (list) : Unaltered user input with globs.
-    gpaths (list) : List of full paths from git working tree.
+    Args:
+        lpaths (list) : Unaltered user input with globs.
+        gpaths (list) : List of full paths from git working tree.
 
-Returns:
-    (list) : list of expanded paths
+    Returns:
+        (list) : list of expanded paths
     """
     gpaths = sorted(set(git_statuses.values()), key=sorting_key)
     gitpathstring = "\n".join(gpaths)
@@ -76,7 +76,6 @@ Returns:
             out.extend(sorted(set(lpath_sys + lpath_git),
                               key=sorting_key))
 
-
         elif os.path.isfile(lpath):
             lpath = os.path.abspath(lpath)
             out.append(lpath)
@@ -94,8 +93,7 @@ Returns:
             print(lpath, "not recognised!")
 
     seen = set()
-    add = seen.add
-    out = [x for x in out if not (x in seen or add(x))]
+    out = [x for x in out if not (x in seen or seen.add(x))]
     if "" in out:
         out.remove("")
 
@@ -113,15 +111,14 @@ Returns:
 
 def get_git_status(lfiles):
     """
-Get all git files and their status for given set of git repo rot directories.
+    Get git status for a given list of files.
 
-Args:
-    lfiles (list) : List of unmodified user input.
+    Args:
+        lfiles (list) : List of unmodified user input.
 
-Returns:
-    (dict) : Keys are full paths, and values are git two-letter status codes.
+    Returns:
+        (dict) : Keys are full paths, and values are git status codes.
     """
-
     globs = []
     lfiles = lfiles[:]
     while lfiles:
@@ -167,20 +164,55 @@ Returns:
         statuses = git_command(cmd, git_path)
 
         out.update({
-            git_path + key[1] : key[0]
+            git_path + key[1]: key[0]
             for key in re.findall(regex1, statuses)
         })
         out.update({
-            git_path + key[1] : key[0] + git_path + key[2]
+            git_path + key[1]: key[0] + git_path + key[2]
             for key in re.findall(regex2, statuses)
         })
 
     return out
 
 
-def get_sys_status(lfiles, human=False):
+def format_filesize(size, human=False):
+    """Format file size for output."""
+    if human:
+        if size < 1024.0:
+            return "%d" % size
 
+        for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']:
+            if size < 1024.0:
+                return "%3.1f%s" % (size, unit)
+            size /= 1024.0
+
+        return ">Y"
+
+    return str(size)
+
+
+def format_time(mtime):
+    """Format time for output."""
     six_months_ago = time.time() - 180*24*60
+
+    if mtime > six_months_ago:
+        return time.strftime("%b;%d %H:%I", mtime).split(";")
+
+    return time.strftime("%b;%d  %Y", mtime).split(";")
+
+
+def get_sys_status(lfiles, human=False):
+    """
+    Get system information about files.
+
+    Args:
+        lfiles (list) : list of full paths
+        human (bool) : Human readable file sizes
+
+    Returns:
+        (list) : Set of tuples with system information on format
+                 `(mode, owner, group, size, mtime1, mtime2)`
+    """
     out = []
     for lfile in lfiles:
 
@@ -197,33 +229,16 @@ def get_sys_status(lfiles, human=False):
             out.append(("", "", "", "", "", ""))
             continue
 
-
         mode = bin(os.stat(lfile).st_mode)[-9:]
         mode = pre + "".join([m == "1" and M or "-"
                               for m, M in zip(mode, "rwxrwxrwx")])
         stat = os.stat(lfile)
         owner = pwd.getpwuid(stat.st_uid).pw_name
         group = pwd.getpwuid(stat.st_gid).pw_name
-        size = stat.st_size
-        if human:
-            for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
-                if size < 1024.0:
-                    size = "%3.1f%s" % (size, unit)
-                    break
-                size /= 1024.0
-            else:
-                size = "%.1fY" % size
-            if not unit:
-                size = size[:3]
 
-        else:
-            size = str(size)
+        size = format_filesize(stat.st_size, human)
 
-        mtime = time.gmtime(stat.st_atime)
-        if mtime > six_months_ago:
-            mtime1, mtime2 = time.strftime("%b;%d %H:%I", mtime).split(";")
-        else:
-            mtime1, mtime2 = time.strftime("%b;%d  %Y", mtime).split(";")
+        mtime1, mtime2 = format_time(stat.st_atime)
 
         out.append((mode, owner, group, size, mtime1, mtime2))
 

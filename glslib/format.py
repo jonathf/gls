@@ -28,13 +28,13 @@ Returns:
     while lfiles:
 
         lfile = lfiles.pop(0)
+        code = statuses.get(lfile, "  ")
 
         if os.path.isdir(lfile):
             color = glslib.config.mapping["dir"]
             prefix = glslib.config.color[color]
 
         else:
-            code = statuses.get(lfile, "  ")
             if code != "  ":
                 code = code.replace(" ", "_")
 
@@ -49,6 +49,9 @@ Returns:
 
         if os.path.islink(lfile):
             postfix = glslib.config.color["cyan"] + "^ "
+
+        elif os.path.isdir(lfile):
+            postfix = "  "
 
         elif "r" in code or "d" in code:
             postfix = glslib.config.color["grey"] + "<-"
