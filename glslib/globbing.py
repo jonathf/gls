@@ -197,9 +197,9 @@ def format_time(mtime):
     six_months_ago = time.time() - 180*24*60
 
     if mtime > six_months_ago:
-        return time.strftime("%b;%d %H:%I", mtime).split(";")
+        return time.strftime("%b;%d %H:%I", time.localtime(mtime)).split(";")
 
-    return time.strftime("%b;%d  %Y", mtime).split(";")
+    return time.strftime("%b;%d  %Y", time.localtime(mtime)).split(";")
 
 
 def get_sys_status(lfiles, human=False):
