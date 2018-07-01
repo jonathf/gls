@@ -6,6 +6,7 @@ import subprocess
 import glob
 import re
 import pwd
+import grp
 import time
 
 
@@ -196,9 +197,9 @@ def format_time(mtime):
     six_months_ago = time.time() - 180*24*60
 
     if mtime > six_months_ago:
-        return time.strftime("%b;%d %H:%I", mtime).split(";")
+        return time.strftime("%b;%d %H:%I", time.localtime(mtime)).split(";")
 
-    return time.strftime("%b;%d  %Y", mtime).split(";")
+    return time.strftime("%b;%d  %Y", time.localtime(mtime)).split(";")
 
 
 def get_sys_status(lfiles, human=False):
@@ -234,7 +235,7 @@ def get_sys_status(lfiles, human=False):
                               for m, M in zip(mode, "rwxrwxrwx")])
         stat = os.stat(lfile)
         owner = pwd.getpwuid(stat.st_uid).pw_name
-        group = pwd.getpwuid(stat.st_gid).pw_name
+        group = grp.getgrgid(stat.st_gid).gr_name 
 
         size = format_filesize(stat.st_size, human)
 
